@@ -227,11 +227,11 @@ Route::get('test-broadcast', function(){
 php artisan queue:listen --tries=1
 ```
 
-8.最後查看
-進入 http://laravel.test/test-broadcast 時   
-首頁 http://laravel.test/ 會收到相關資料   
+8.最後查看    
+進入 http://laravel.test/test-broadcast 時     
+首頁 http://laravel.test/ 會收到相關資料     
 
-參考資料:    
+參考資料:       
 https://learnku.com/articles/9430/how-laravel-uses-docker-to-quickly-erect-echo-server-top   
 https://learnku.com/articles/9431/how-laravel-uses-docker-to-quickly-erect-echo-server-below   
 https://github.com/leoa12412a/Laravel-echo-server   
