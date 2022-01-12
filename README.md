@@ -1,6 +1,6 @@
 # laravel-socket.io
 
-### 1.先查看自己的環境，本環境是使用laradock架設    
+### 1.先查看自己的環境，本環境使用了 windows & docker-desktop & laradock    
 如果是vagrant或是其他linux環境下架設    
 參考 => https://learnku.com/laravel/t/13101/using-laravel-echo-server-to-build-real-time-applications  
 
@@ -8,7 +8,7 @@
 參考 => https://github.com/wanderingRock/WindowsLaradock
 
 ### Step.1 
-### 安裝 Redis & laravel-echo-server
+### 安裝 Redis
 --- 
 Redis 的要調整設定黨   
 1.修改 .env 環境變數 
@@ -17,7 +17,7 @@ Redis 的要調整設定黨
 REDIS_PORT=6379  //看情況自行設定
 ```
 
-2.確認路徑laradock/redis 的 Dockerfile 檔案與設定的Port一致
+2.確認路徑 laradock\redis 下的 Dockerfile 檔案與設定的Port一致
 ```
 FROM redis:latest
 
@@ -35,7 +35,7 @@ CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]
 #CMD ["redis-server"]
 ```
 
-3.修改路徑為 laradock/redis 的 redis.conf 檔案   
+3.修改路徑 laradock\redis 下的 redis.conf 檔案   
 -註解 bind 127.0.0.1
 ```
 # bind 127.0.0.1
@@ -59,4 +59,83 @@ docker-compose build --no-cache redis
 docker-compose up -d redis
 ```
 
-參考 => ttps://hoohoo.top/blog/laradock-redis-production-environment-configuration/
+參考 => https://hoohoo.top/blog/laradock-redis-production-environment-configuration/
+
+### Step.2  安裝 laravel-echo-server
+1.下安裝指令      
+當然有相關設定可以至   
+路徑 laradock\laravel-echo-server 下的 laravel-echo-server.json 修改設定值 (這裡目前我沒特別設定)
+```
+docker-compose up -d laravel-echo-server
+```
+確認是否安裝可以看 docker ui 介面
+
+### Step.3  進入環境並且確認相關套件
+
+1進入docker容器 名為 workspace 容
+```
+docker exec -it laradock_workspace_1 bash  
+winpty docker exec -it laradock_workspace_1 bash
+```
+
+2.確認是否有composer & npm & node
+```
+composer -v
+npm -v
+node -v
+```
+可先將上述幾項都更新至最新    
+我這邊只作 npm update 因為其他已為最新   
+```
+npm update
+```
+### Step.4  建立專案
+1.建立專案 
+```
+composer create-project --prefer-dist laravel/laravel laravel
+cd laravel
+```
+
+2.安裝Predis
+```
+composer require predis/predis
+```
+
+3.安裝node_modules
+```
+npm install
+```
+
+4.於/config/app.php 備註 App\Providers\BroadcastServiceProvider::class 這行
+```
+//App\Providers\BroadcastServiceProvider::class,
+```
+
+5.於/config/app.php 取消備註 // 'Redis' => Illuminate\Support\Facades\Redis::class,
+```
+'Redis' => Illuminate\Support\Facades\Redis::class,
+```
+
+6.修改 .env 的 關於redis的配置
+```
+BROADCAST_DRIVER=redis
+QUEUE_CONNECTION=redis
+REDIS_HOST=redis
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+REDIS_CLIENT=predis //新增
+```
+7.對於專案安裝 socket.io-client & laravel-echo
+```
+npm install --save socket.io-client@2.4.0 //最新版本有相關錯誤
+npm install --save laravel-echo
+```
+### Step.5  開始撰寫
+
+1.於 webpack.mix.js 新增以下程式碼
+```
+mix.options({
+    legacyNodePolyfills: true
+});
+```
+原因請參考 => https://laravel-mix.com/docs/6.0/legacy-node-polyfills
