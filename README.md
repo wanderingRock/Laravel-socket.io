@@ -7,8 +7,7 @@
 ### 2.laradock 架設本地環境   
 參考 => https://github.com/wanderingRock/WindowsLaradock
 
-### Step.1 
-### 安裝 Redis
+### Step.1 安裝 Redis
 --- 
 Redis 的要調整設定黨   
 1.修改 .env 環境變數 
@@ -36,24 +35,28 @@ CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]
 ```
 
 3.修改路徑 laradock\redis 下的 redis.conf 檔案   
--註解 bind 127.0.0.1
+註解 bind 127.0.0.1
 ```
 # bind 127.0.0.1
 ```
--將 protected-mode 改為 no
+
+將 protected-mode 改為 no
 ```
 protected-mode no
 ```
--設置連線密碼，解除 requirepass 註解，設定密碼 (此步驟沒有想設定密碼可不設置)
+
+設置連線密碼，解除 requirepass 註解，設定密碼 (此步驟沒有想設定密碼可不設置)
 ```
 # quirepass 你的密碼 //要設定請把#拿掉
 ```
+
 4.重置 Redis 環境    
 停止且重新安裝 redis   
 ```
 docker-compose stop redis
 docker-compose build --no-cache redis
 ```
+
 5.重新啟動
 ```
 docker-compose up -d redis
@@ -89,7 +92,7 @@ node -v
 ```
 npm update
 ```
-### Step.4  建立專案
+### Step.4  建立專案並且設訂相關參數
 1.建立專案 
 ```
 composer create-project --prefer-dist laravel/laravel laravel
@@ -125,7 +128,20 @@ REDIS_PASSWORD=null
 REDIS_PORT=6379
 REDIS_CLIENT=predis //新增
 ```
-7.對於專案安裝 socket.io-client & laravel-echo
+
+7.修改 config/database.php 的 關於redis的配置
+prefix 修改為空 socket的channel才不會有多餘的東西
+```
+...
+'redis' => [
+    'options' => [
+            ...
+            'prefix' => '', 
+        ],
+]
+```
+
+8.對於專案安裝 socket.io-client & laravel-echo
 ```
 npm install --save socket.io-client@2.4.0 //最新版本有相關錯誤
 npm install --save laravel-echo
@@ -139,3 +155,85 @@ mix.options({
 });
 ```
 原因請參考 => https://laravel-mix.com/docs/6.0/legacy-node-polyfills
+
+2.resources/assets/js/bootstrap.js  進行引入 Socket.IO
+```
+import Echo from "laravel-echo"
+window.io = require('socket.io-client');
+window.Echo = new Echo({
+    broadcaster: 'socket.io',
+    host: window.location.hostname + ':6001'
+});
+```
+
+3.在初始首頁新增程式碼
+header 部分加入以下程式碼(因為之後會重新編譯app.js 導出至 public/js底下)   
+```
+<script type="text/javascript" src="{{ URL::asset('js/app.js') }}"></script>
+```
+
+body下方加入script   
+```
+<script> 
+        console.log(window.Echo)
+        window.Echo.channel('test-event')
+            .listen('ExampleEvent', (e) => {
+                console.log(e);
+            });
+</script>
+```
+
+4.執行npm run dev 編譯檔案 或是其他指令
+3擇1
+```
+npm run dev
+npm run watch
+npm run watch-poll
+```
+
+5.創建事件檔案
+```
+ php artisan make:event ExampleEvent
+```
+
+继承于 ShouldBroadcast
+```
+class ExampleEvent implements ShouldBroadcast
+```
+
+修改程式碼
+```
+public function broadcastOn()
+{
+    return new Channel('test-event');
+}
+public function broadcastWith()
+{
+    return [
+        'data' => 'key'
+    ];
+}
+```
+6.創建測試路由
+routes/web.php 下新增
+```
+Route::get('test-broadcast', function(){
+    broadcast(new \App\Events\ExampleEvent); //或是 event(new \App\Events\ExampleEvent)
+});
+```
+
+7.最後在容器內的專案下下指令
+```
+php artisan queue:listen --tries=1
+```
+
+8.最後查看
+進入 http://laravel.test/test-broadcast 時   
+首頁 http://laravel.test/ 會收到相關資料   
+
+參考資料:    
+https://learnku.com/articles/9430/how-laravel-uses-docker-to-quickly-erect-echo-server-top   
+https://learnku.com/articles/9431/how-laravel-uses-docker-to-quickly-erect-echo-server-below   
+https://github.com/leoa12412a/Laravel-echo-server   
+https://learnku.com/laravel/t/13101/using-laravel-echo-server-to-build-real-time-applications
+
